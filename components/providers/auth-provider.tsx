@@ -10,32 +10,44 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
   const pathname = usePathname();
 
+  // 1. INITIAL CHECK: Run ONLY on mount (first load)
   useEffect(() => {
-    const checkAuthentication = async () => {
-      setLoading(true);
-      const result = await checkAuth();
-      if (result && result.authenticated && result.user) {
-        setUser(result.user);
-      } else {
-        setUser(null);
-        if (
-          !pathname.startsWith("/login") &&
-          !pathname.startsWith("/register")
-        ) {
-          router.push("/login");
+    const initAuth = async () => {
+      try {
+        setLoading(true);
+        const result = await checkAuth();
+        if (result && result.authenticated && result.user) {
+          setUser(result.user);
+        } else {
+          setUser(null);
         }
+      } catch (error) {
+        setUser(null);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    checkAuthentication();
-  }, [setUser, setLoading, router, pathname]);
+    initAuth();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [setUser, setLoading]); // Removed 'pathname' so this doesn't run on tab switch
 
-  // Redirect authenticated users away from auth pages
+  // 2. ROUTE PROTECTION: Run on path change
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      if (pathname === "/login" || pathname === "/register") {
+    if (isLoading) return; // Wait for initial check to finish
+
+    const isAuthPage =
+      pathname.startsWith("/login") || pathname.startsWith("/register");
+
+    if (isAuthenticated) {
+      // If logged in, kick out of login/register pages
+      if (isAuthPage) {
         router.push("/");
+      }
+    } else {
+      // If NOT logged in, kick out of protected pages
+      if (!isAuthPage) {
+        router.push("/login");
       }
     }
   }, [isLoading, isAuthenticated, pathname, router]);

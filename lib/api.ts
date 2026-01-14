@@ -1,7 +1,7 @@
-// type: uploaded file
-// fileName: api.ts
 import { toast } from "sonner";
 import { PaginatedLogsResponse } from "@/types";
+// [UPDATED] Import the store to trigger logout
+import { useAuthStore } from "@/lib/auth-store";
 import type {
   LoginRequest,
   RegisterRequest,
@@ -17,7 +17,6 @@ import type {
   AddCustomRuleRequest,
   ToggleRuleRequest,
   AttackLog,
-  ToggleDNSRecordOriginSSLRequest,
 } from "@/types";
 
 // Get API URL from environment variable
@@ -69,6 +68,23 @@ async function apiCall<T>(
         ...fetchOptions.headers,
       },
     });
+
+    // [NEW] GLOBAL SAFETY NET FOR 401 UNAUTHORIZED
+    // If any request fails because the session expired, kick the user out immediately.
+    if (response.status === 401) {
+      // Avoid infinite loop: Don't redirect if we are just checking auth status
+      if (endpoint !== "/api/auth/check") {
+        // 1. Clear Client State
+        useAuthStore.getState().logout();
+
+        // 2. Force Redirect to Login
+        if (typeof window !== "undefined") {
+          window.location.href = "/login";
+        }
+      }
+      // Return null so the calling function handles it as a failure
+      return null;
+    }
 
     if (response.status === 401 && endpoint === "/api/auth/check") {
       return null;
@@ -290,6 +306,7 @@ export async function deleteCustomRule(ruleId: string): Promise<any | null> {
   });
 }
 
+// [FIXED] Manually map 'id' to 'rule_id' to match backend expectation
 export async function toggleRule(data: ToggleRuleRequest): Promise<any | null> {
   return apiCall("/api/rules/toggle", {
     method: "POST",
