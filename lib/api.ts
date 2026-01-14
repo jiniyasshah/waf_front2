@@ -293,7 +293,11 @@ export async function deleteCustomRule(ruleId: string): Promise<any | null> {
 export async function toggleRule(data: ToggleRuleRequest): Promise<any | null> {
   return apiCall("/api/rules/toggle", {
     method: "POST",
-    body: JSON.stringify(data),
+    body: JSON.stringify({
+      rule_id: data.id, // Mapped here
+      domain_id: data.domain_id,
+      enabled: data.enabled,
+    }),
   });
 }
 
