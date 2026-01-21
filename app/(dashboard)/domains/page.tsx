@@ -131,14 +131,14 @@ export default function DomainsPage() {
     setDnsRecords((prev) => ({
       ...prev,
       [domainId]: prev[domainId].map((r) =>
-        r.id === record.id ? { ...r, proxied: newProxiedState } : r
+        r.id === record.id ? { ...r, proxied: newProxiedState } : r,
       ),
     }));
 
     const result = await toggleDNSRecordProxy(
       domainId,
       record.id,
-      newProxiedState
+      newProxiedState,
     );
     if (!result || result.status !== "success") {
       toast.error("Failed to update proxy status");
@@ -151,7 +151,7 @@ export default function DomainsPage() {
     setDnsRecords((prev) => ({
       ...prev,
       [domainId]: prev[domainId].map((r) =>
-        r.id === record.id ? { ...r, origin_ssl: newStatus } : r
+        r.id === record.id ? { ...r, origin_ssl: newStatus } : r,
       ),
     }));
 
@@ -161,7 +161,7 @@ export default function DomainsPage() {
       setDnsRecords((prev) => ({
         ...prev,
         [domainId]: prev[domainId].map((r) =>
-          r.id === record.id ? { ...r, origin_ssl: !newStatus } : r
+          r.id === record.id ? { ...r, origin_ssl: !newStatus } : r,
         ),
       }));
       toast.error("Failed to update SSL status");
@@ -447,7 +447,7 @@ export default function DomainsPage() {
                               <Badge
                                 variant="outline"
                                 className={`w-16 justify-center font-mono text-xs font-bold border ${getRecordTypeStyle(
-                                  record.type
+                                  record.type,
                                 )}`}
                               >
                                 {record.type}
@@ -613,7 +613,16 @@ export default function DomainsPage() {
                 <div className="space-y-2">
                   <Label>Content</Label>
                   <Input
-                    placeholder="192.168.1.1"
+                    placeholder={
+                      {
+                        A: "192.0.2.1",
+                        AAAA: "2001:0db8:85a3:0000:0000:8a2e:0370:7334",
+                        CNAME: "example.com",
+                        MX: "mail.example.com",
+                        TXT: "v=spf1 include:_spf.google.com ~all",
+                        NS: "ns1.example.com",
+                      }[newRecord.type] || "Content"
+                    }
                     value={newRecord.content}
                     onChange={(e) =>
                       setNewRecord({ ...newRecord, content: e.target.value })
