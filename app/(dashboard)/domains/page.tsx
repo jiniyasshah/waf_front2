@@ -41,9 +41,16 @@ import {
 } from "lucide-react";
 import { formatDate } from "@/lib/utils";
 
+// ... existing imports
+
 // Regex Patterns
 const DOMAIN_REGEX =
   /^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)*$/i;
+// ADD THESE NEW ONES:
+const IPV4_REGEX =
+  /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/;
+const IPV6_REGEX =
+  /(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))/;
 
 export default function DomainsPage() {
   const [domains, setDomains] = useState<Domain[]>([]);
@@ -174,6 +181,46 @@ export default function DomainsPage() {
 
     if (!newRecord.name) return toast.error("Name required");
     if (!newRecord.content) return toast.error("Content required");
+
+    // --- NEW VALIDATION LOGIC START ---
+    let isValid = true;
+    let errorMessage = "";
+
+    switch (newRecord.type) {
+      case "A":
+        if (!IPV4_REGEX.test(newRecord.content)) {
+          isValid = false;
+          errorMessage = "Invalid IPv4 address (e.g., 192.0.2.1)";
+        }
+        break;
+      case "AAAA":
+        if (!IPV6_REGEX.test(newRecord.content)) {
+          isValid = false;
+          errorMessage = "Invalid IPv6 address";
+        }
+        break;
+      case "CNAME":
+      case "MX":
+      case "NS":
+        // Using your existing DOMAIN_REGEX for hostnames
+        if (!DOMAIN_REGEX.test(newRecord.content)) {
+          isValid = false;
+          errorMessage = "Invalid domain format (e.g., example.com)";
+        }
+        break;
+      case "TXT":
+        // TXT records are usually permissive, but shouldn't be empty
+        if (newRecord.content.length < 1) {
+          isValid = false;
+          errorMessage = "TXT content cannot be empty";
+        }
+        break;
+    }
+
+    if (!isValid) {
+      return toast.error(errorMessage);
+    }
+    // --- NEW VALIDATION LOGIC END ---
 
     setIsAddingRecord(true);
     const result = await addDNSRecord({
@@ -613,6 +660,7 @@ export default function DomainsPage() {
                 <div className="space-y-2">
                   <Label>Content</Label>
                   <Input
+                    // UPDATED PLACEHOLDER LOGIC
                     placeholder={
                       {
                         A: "192.0.2.1",
@@ -628,6 +676,15 @@ export default function DomainsPage() {
                       setNewRecord({ ...newRecord, content: e.target.value })
                     }
                   />
+                  {/* OPTIONAL: Helper text to guide user */}
+                  <p className="text-[10px] text-muted-foreground">
+                    {newRecord.type === "A" && "Enter a valid IPv4 address."}
+                    {newRecord.type === "AAAA" && "Enter a valid IPv6 address."}
+                    {(newRecord.type === "CNAME" ||
+                      newRecord.type === "NS" ||
+                      newRecord.type === "MX") &&
+                      "Enter a valid hostname."}
+                  </p>
                 </div>
 
                 {["A", "AAAA", "CNAME"].includes(newRecord.type) && (
